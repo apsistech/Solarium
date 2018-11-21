@@ -10,16 +10,18 @@ class RealTimeClock:
     def Update(self):
         self.GetRegisterData()
         self.UpdateTimestamp()
-        
-        print self.register_data
-        print self.second, self.minute, self.hour
-        print self.hour_mode, self.am_pm
-        print self.timestamp
+
+    def GetTimestamp(self):
+        return self.timestamp
+
+    def SetTimeFromSystemClock(self):
+        self.SetTimeFromTimestamp(datetime.utcnow().isoformat())
 
     def SetTimeFromTimestamp(self, timestamp):
         dt = dateutil.parser.parse(timestamp).replace(tzinfo=None, microsecond=0)
         self.year = dt.year
         self.month = dt.month
+        self.day = dt.isoweekday()
         self.date = dt.day
         self.hour = dt.hour
         self.minute = dt.minute
@@ -27,8 +29,15 @@ class RealTimeClock:
         self.hour_mode = 0
         self.am_pm = 0
 
-        print self.second, self.minute, self.hour
+        self.register_data[0] = (self.second % 10) + (((self.second - (self.second % 10))/10) << 4)
+        self.register_data[1] = (self.minute % 10) + (((self.minute - (self.minute % 10))/10) << 4)
+        self.register_data[2] = (self.hour % 10) | (((self.hour - (self.hour % 10))/10) << 4) | (self.hour_mode<<6) | (self.am_pm<<5)
+        self.register_data[3] = self.day
+        self.register_data[4] = (self.date % 10) + (((self.date - (self.date % 10))/10) << 4)
+        self.register_data[5] = (self.month % 10) + (((self.month - (self.month % 10))/10) << 4)
+        self.register_data[6] = (self.year % 10) + ((((self.year % 100) - (self.year % 10))/10) << 4)
 
+        self.SetRegisterData()
 
     # Low level functions
     def GetRegisterData(self):
@@ -39,7 +48,9 @@ class RealTimeClock:
 
     def SetRegisterData(self):
         bus = smbus.SMBus(1)
-        for n in range(0, 16):
+        
+        # Write only first 15 registers, 16th is a status read-only register
+        for n in range(0, 15):
             self.register_data[n] = bus.write_byte_data(0x68, n, self.register_data[n])
         bus.close()
 
@@ -48,18 +59,18 @@ class RealTimeClock:
         self.minute = (self.register_data[1] >> 4)*10 + (self.register_data[1] & 0b1111)
         self.hour_mode = (self.register_data[2] >> 6) & 0x01
 
-        # 12 hour mode
+        # 24 hour mode
         if self.hour_mode == 0:
+            self.hour = ((self.register_data[2] >> 4) & 0b11)*10 + (self.register_data[2] & 0b1111)
+
+        # 12 hour mode
+        elif self.hour_mode == 1:
             self.hour = ((self.register_data[2] >> 4) & 0x01)*10 + (self.register_data[2] & 0b1111)
             self.am_pm = (self.register_data[2] >> 5) & 0x01
 
-        # 24 hour mode
-        elif self.hour_mode == 1:
-            self.hour = ((self.register_data[2] >> 4) & 0b11)*10 + (self.register_data[2] & 0b1111)
-
         self.day = self.register_data[3]
         self.date = (self.register_data[4] >> 4)*10 + (self.register_data[4] & 0b1111)
-        self.month = ((self.register_data[5] >> 4) & 0x01)*10 + (self.register_data[5] & 0b1111)
+        self.month = (((self.register_data[5] >> 4) & 0x01)*10 + (self.register_data[5] & 0b1111))
         self.century = self.register_data[5] >> 7
         self.year = 2000 + ((self.register_data[6] >> 4)*10 + (self.register_data[6] & 0b1111))
 

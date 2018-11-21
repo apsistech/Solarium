@@ -4,5 +4,5 @@ import datetime
 
 real_time_clock = rtc.RealTimeClock()
 
-#real_time_clock.Update()
-real_time_clock.SetTimeFromTimestamp(datetime.datetime.utcnow().isoformat())
+real_time_clock.Update()
+print real_time_clock.GetTimestamp()
