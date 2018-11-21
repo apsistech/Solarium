@@ -7,6 +7,7 @@ class RealTimeClock:
     def __init__(self):
         pass
 
+    # High level functions
     def Update(self):
         self.GetRegisterData()
         self.UpdateTimestamp()
