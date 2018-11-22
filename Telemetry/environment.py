@@ -17,6 +17,9 @@ class EnvironmentSensor:
     def GetPressure(self):
         return self.pressure
 
+    def GetHumidity(self):
+        return self.humidity
+
     # Low level functions
     def ForceSingleMeasurement(self):
         bus = smbus.SMBus(1)
@@ -51,8 +54,8 @@ class EnvironmentSensor:
 
     def ReadCalibrationData(self):
         bus = smbus.SMBus(1)
-        self.calibration_data[0:24] = bus.read_i2c_block_data(0x76, 0x88, 24)
-        #self.calibration_data[26:42] = bus.read_i2c_block_data(0x76, 0xE1, 16)
+        self.calibration_data[0:26] = bus.read_i2c_block_data(0x76, 0x88, 26)
+        self.calibration_data[26:42] = bus.read_i2c_block_data(0x76, 0xE1, 16)
         bus.close()
 
         self.dig_T1 = ctypes.c_ushort(self.calibration_data[0] | (self.calibration_data[1]<<8)).value
@@ -67,12 +70,12 @@ class EnvironmentSensor:
         self.dig_P7 = ctypes.c_short(self.calibration_data[18] | (self.calibration_data[19]<<8)).value
         self.dig_P8 = ctypes.c_short(self.calibration_data[20] | (self.calibration_data[21]<<8)).value
         self.dig_P9 = ctypes.c_short(self.calibration_data[22] | (self.calibration_data[23]<<8)).value
-        #self.dig_H1 = ctypes.c_ubyte(self.calibration_data[24]).value
-        #self.dig_H2 = ctypes.c_short(self.calibration_data[25] | (self.calibration_data[26]<<8)).value
-        #self.dig_H3 = ctypes.c_ubyte(self.calibration_data[27]).value
-        #self.dig_H4 = ctypes.c_short(self.calibration_data[28] | (self.calibration_data[29]<<8)).value
-        #self.dig_H5 = ctypes.c_short(self.calibration_data[30] | (self.calibration_data[31]<<8)).value
-        #self.dig_H6 = ctypes.c_byte(self.calibration_data[32]).value
+        self.dig_H1 = ctypes.c_ubyte(self.calibration_data[25]).value
+        self.dig_H2 = ctypes.c_short(self.calibration_data[26] | (self.calibration_data[27]<<8)).value
+        self.dig_H3 = ctypes.c_ubyte(self.calibration_data[28]).value
+        self.dig_H4 = ctypes.c_short((self.calibration_data[29]<<4) | (self.calibration_data[30] & 0x0F)).value
+        self.dig_H5 = ctypes.c_short((self.calibration_data[32]<<4) | ((self.calibration_data[31] & 0xF)>>4)).value
+        self.dig_H6 = ctypes.c_byte(self.calibration_data[32]).value
 
         print 'dig_T1 =', self.dig_T1
         print 'dig_T2 =', self.dig_T2
@@ -123,6 +126,24 @@ class EnvironmentSensor:
             var2 = p * float(self.dig_P8) / 32768.0
             p = p + ((var1 + var2 + float(self.dig_P7)) / 16.0)
             self.pressure = p
+
+    def CalculateHumidity(self):
+        # These equations are from the BME280 datasheet Appendeix 8.1
+        var1_t = ((float(self.temperature_raw)/16384.0) - ((float(self.dig_T1)/1024.0))) * float(self.dig_T2)
+        var2_t = ((float(self.temperature_raw)/131072.0) - (float(self.dig_T1)/8192.00)) * ((float(self.temperature_raw)/1310720.0) - ((float(self.dig_T1)/8192.0) * float(self.dig_T3)))
+        t_fine = int(var1_t + var2_t)
+
+        var_h = float(t_fine) - 76800.0
+        var_h = (float(self.humidity_raw) - float(self.dig_H4) * 64.0 + float(self.dig_H5) / 16384.0 * var_h) \
+                * (float(self.dig_H2) / 65536.0 * (1.0 + float(self.dig_H6) / 67108864.0 * var_h * (1.0 + float(self.dig_H3) / 67108864.0 * var_h)))
+
+        if var_h > 100.0:
+            var_h = 100.0
+
+        elif var_h < 0.0:
+            var_h = 0.0
+
+        self.humidity = var_h
 
     # Register level data
     calibration_data = [ 0x00 ] * 42

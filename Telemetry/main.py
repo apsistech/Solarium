@@ -18,6 +18,8 @@ environment_sensor.ReadCalibrationData()
 environment_sensor.ReadRawMeasurementData()
 environment_sensor.CalculateTemperature()
 environment_sensor.CalculatePressure()
+environment_sensor.CalculateHumidity()
 
 print "Temperature =", environment_sensor.GetTemperature()
 print "Pressure =", environment_sensor.GetPressure()
+print "Humidity =", environment_sensor.GetHumidity()
