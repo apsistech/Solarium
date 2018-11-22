@@ -37,8 +37,8 @@ class InertialMeasurementUnit:
     def UpdateMeasurementData(self):
         bus = smbus.SMBus(1)
         self.raw_measurement_data = bus.read_i2c_block_data(0x69, 0x04, 20)
-        print bin(bus.read_byte_data(0x69, 0x03))
-        print bin(bus.read_byte_data(0x69, 0x1B))
+        #print bin(bus.read_byte_data(0x69, 0x03))
+        #print bin(bus.read_byte_data(0x69, 0x1B))
         bus.close()
 
         self.accel[2] = round(ctypes.c_short((self.raw_measurement_data[19]<<8) | self.raw_measurement_data[18]).value * 2.0 / 2**15, 2)

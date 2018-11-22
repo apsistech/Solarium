@@ -1,6 +1,7 @@
 #!/usr/bin/python
 import smbus
 import ctypes
+import time
 from math import *
 
 class EnvironmentSensor:
@@ -9,7 +10,16 @@ class EnvironmentSensor:
 
     # High level functions
     def Update(self):
-        pass
+        self.ForceSingleMeasurement()
+
+        # TODO: Replace with polling function to check when measurement is complete
+        time.sleep(1)
+
+        self.ReadCalibrationData()
+        self.ReadRawMeasurementData()
+        self.CalculateTemperature()
+        self.CalculatePressure()
+        self.CalculateHumidity()
 
     def GetTemperature(self):
         return self.temperature
