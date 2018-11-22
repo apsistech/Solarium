@@ -17,5 +17,7 @@ time.sleep(1)
 environment_sensor.ReadCalibrationData()
 environment_sensor.ReadRawMeasurementData()
 environment_sensor.CalculateTemperature()
+environment_sensor.CalculatePressure()
 
 print "Temperature =", environment_sensor.GetTemperature()
+print "Pressure =", environment_sensor.GetPressure()

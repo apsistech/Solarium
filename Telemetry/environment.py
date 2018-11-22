@@ -1,6 +1,7 @@
 #!/usr/bin/python
 import smbus
 import ctypes
+from math import *
 
 class EnvironmentSensor:
     def __init__(self):
@@ -13,9 +14,13 @@ class EnvironmentSensor:
     def GetTemperature(self):
         return self.temperature
 
+    def GetPressure(self):
+        return self.pressure
+
     # Low level functions
     def ForceSingleMeasurement(self):
         bus = smbus.SMBus(1)
+        bus.write_byte_data(0x76, 0xF5, 0b11100000)
         bus.write_byte_data(0x76, 0xF2, 0b00000001)
         bus.write_byte_data(0x76, 0xF4, 0b00100101)
         #print bus.read_i2c_block_data(0x76, 0xF2, 12)
@@ -46,15 +51,15 @@ class EnvironmentSensor:
 
     def ReadCalibrationData(self):
         bus = smbus.SMBus(1)
-        self.calibration_data[0:26] = bus.read_i2c_block_data(0x76, 0x88, 26)
-        self.calibration_data[26:42] = bus.read_i2c_block_data(0x76, 0xE1, 16)
+        self.calibration_data[0:24] = bus.read_i2c_block_data(0x76, 0x88, 24)
+        #self.calibration_data[26:42] = bus.read_i2c_block_data(0x76, 0xE1, 16)
         bus.close()
 
         self.dig_T1 = ctypes.c_ushort(self.calibration_data[0] | (self.calibration_data[1]<<8)).value
-        self.dig_T2 = ctypes.c_short(self.calibration_data[2] | (self.calibration_data[3]<<8)).value
-        self.dig_T3 = ctypes.c_short(self.calibration_data[4] | (self.calibration_data[5]<<8)).value
+        self.dig_T2 = ctypes.c_short(self.calibration_data[2]  | (self.calibration_data[3]<<8)).value
+        self.dig_T3 = ctypes.c_short(self.calibration_data[4]  | (self.calibration_data[5]<<8)).value
         self.dig_P1 = ctypes.c_ushort(self.calibration_data[6] | (self.calibration_data[7]<<8)).value
-        self.dig_P2 = ctypes.c_short(self.calibration_data[8] | (self.calibration_data[9]<<8)).value
+        self.dig_P2 = ctypes.c_short(self.calibration_data[8]  | (self.calibration_data[9]<<8)).value
         self.dig_P3 = ctypes.c_short(self.calibration_data[10] | (self.calibration_data[11]<<8)).value
         self.dig_P4 = ctypes.c_short(self.calibration_data[12] | (self.calibration_data[13]<<8)).value
         self.dig_P5 = ctypes.c_short(self.calibration_data[14] | (self.calibration_data[15]<<8)).value
@@ -62,12 +67,12 @@ class EnvironmentSensor:
         self.dig_P7 = ctypes.c_short(self.calibration_data[18] | (self.calibration_data[19]<<8)).value
         self.dig_P8 = ctypes.c_short(self.calibration_data[20] | (self.calibration_data[21]<<8)).value
         self.dig_P9 = ctypes.c_short(self.calibration_data[22] | (self.calibration_data[23]<<8)).value
-        self.dig_H1 = ctypes.c_ubyte(self.calibration_data[24]).value
-        self.dig_H2 = ctypes.c_short(self.calibration_data[25] | (self.calibration_data[26]<<8)).value
-        self.dig_H3 = ctypes.c_ubyte(self.calibration_data[27]).value
-        self.dig_H4 = ctypes.c_short(self.calibration_data[28] | (self.calibration_data[29]<<8)).value
-        self.dig_H5 = ctypes.c_short(self.calibration_data[30] | (self.calibration_data[31]<<8)).value
-        self.dig_H6 = ctypes.c_byte(self.calibration_data[32]).value
+        #self.dig_H1 = ctypes.c_ubyte(self.calibration_data[24]).value
+        #self.dig_H2 = ctypes.c_short(self.calibration_data[25] | (self.calibration_data[26]<<8)).value
+        #self.dig_H3 = ctypes.c_ubyte(self.calibration_data[27]).value
+        #self.dig_H4 = ctypes.c_short(self.calibration_data[28] | (self.calibration_data[29]<<8)).value
+        #self.dig_H5 = ctypes.c_short(self.calibration_data[30] | (self.calibration_data[31]<<8)).value
+        #self.dig_H6 = ctypes.c_byte(self.calibration_data[32]).value
 
         print 'dig_T1 =', self.dig_T1
         print 'dig_T2 =', self.dig_T2
@@ -89,11 +94,35 @@ class EnvironmentSensor:
         print 'dig_H6 =', self.dig_H6
 
     def CalculateTemperature(self):
+        # These equations are from the BME280 datasheet Appendeix 8.1
         var1 = ((float(self.temperature_raw)/16384.0) - ((float(self.dig_T1)/1024.0))) * float(self.dig_T2)
         var2 = ((float(self.temperature_raw)/131072.0) - (float(self.dig_T1)/8192.00)) * ((float(self.temperature_raw)/1310720.0) - ((float(self.dig_T1)/8192.0) * float(self.dig_T3)))
         t_fine = var1 + var2
         
         self.temperature = (var1 + var2) / 5120.0
+
+    def CalculatePressure(self):
+        # These equations are from the BME280 datasheet Appendeix 8.1
+        var1_t = ((float(self.temperature_raw)/16384.0) - ((float(self.dig_T1)/1024.0))) * float(self.dig_T2)
+        var2_t = ((float(self.temperature_raw)/131072.0) - (float(self.dig_T1)/8192.00)) * ((float(self.temperature_raw)/1310720.0) - ((float(self.dig_T1)/8192.0) * float(self.dig_T3)))
+        t_fine = int(var1_t + var2_t)
+
+        var1 = (float(t_fine)/2.0) - 64000.0
+        var2 = var1 * var1 * (float(self.dig_P6) / 32768.0)
+        var2 = var2 + (var1 * (float(self.dig_P5) * 2.0))
+        var2 = (var2 / 4.0) + (float(self.dig_P4) * 65536.0)
+        var1 = (float(self.dig_P3) * var1 * var1 / 524288.0 + float(self.dig_P2) * var1) / 524288.0
+        var1 = (1.0 + (var1 / 32768.0)) * float(self.dig_P1)
+        if fabs(var1) < 1e-8:
+            self.pressure = 0.00
+
+        else:
+            p = 1048576.0 - float(self.pressure_raw)
+            p = (p - (var2 / 4096.0)) * 6250.0 / var1
+            var1 = float(self.dig_P9) * p * p / 2147483648.0
+            var2 = p * float(self.dig_P8) / 32768.0
+            p = p + ((var1 + var2 + float(self.dig_P7)) / 16.0)
+            self.pressure = p
 
     # Register level data
     calibration_data = [ 0x00 ] * 42
