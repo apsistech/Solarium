@@ -56,6 +56,8 @@ class InertialMeasurementUnit:
 
     # Register data
     raw_measurement_data = [ 0x00 ] * 20
+
+    # Measurement data
     accel = [ 0.00, 0.00, 0.00 ]
     gyro = [ 0.00, 0.00, 0.00 ]
     mag = [ 0.00, 0.00, 0.00 ]
