@@ -34,7 +34,7 @@ class EnvironmentSensor:
         self.raw_measurement_data = bus.read_i2c_block_data(0x76, 0xF7, 8)
         bus.close()
 
-        print self.raw_measurement_data
+        #print self.raw_measurement_data
 
         self.pressure_raw = (self.raw_measurement_data[0] << 12) \
                             + (self.raw_measurement_data[1] << 4) \
@@ -48,9 +48,9 @@ class EnvironmentSensor:
                             + self.raw_measurement_data[7]
 
 
-        print 'temperature_raw =', self.temperature_raw
+        '''print 'temperature_raw =', self.temperature_raw
         print 'pressure_raw =', self.pressure_raw
-        print 'humidity_raw =', self.humidity_raw
+        print 'humidity_raw =', self.humidity_raw'''
 
     def ReadCalibrationData(self):
         bus = smbus.SMBus(1)
@@ -77,7 +77,7 @@ class EnvironmentSensor:
         self.dig_H5 = ctypes.c_short((self.calibration_data[32]<<4) | ((self.calibration_data[31] & 0xF)>>4)).value
         self.dig_H6 = ctypes.c_byte(self.calibration_data[32]).value
 
-        print 'dig_T1 =', self.dig_T1
+        '''print 'dig_T1 =', self.dig_T1
         print 'dig_T2 =', self.dig_T2
         print 'dig_T3 =', self.dig_T3
         print 'dig_P1 =', self.dig_P1
@@ -94,7 +94,7 @@ class EnvironmentSensor:
         print 'dig_H3 =', self.dig_H3
         print 'dig_H4 =', self.dig_H4
         print 'dig_H5 =', self.dig_H5
-        print 'dig_H6 =', self.dig_H6
+        print 'dig_H6 =', self.dig_H6'''
 
     def CalculateTemperature(self):
         # These equations are from the BME280 datasheet Appendeix 8.1
@@ -102,7 +102,7 @@ class EnvironmentSensor:
         var2 = ((float(self.temperature_raw)/131072.0) - (float(self.dig_T1)/8192.00)) * ((float(self.temperature_raw)/1310720.0) - ((float(self.dig_T1)/8192.0) * float(self.dig_T3)))
         t_fine = var1 + var2
         
-        self.temperature = (var1 + var2) / 5120.0
+        self.temperature = round((var1 + var2) / 5120.0, 2)
 
     def CalculatePressure(self):
         # These equations are from the BME280 datasheet Appendeix 8.1
@@ -125,7 +125,7 @@ class EnvironmentSensor:
             var1 = float(self.dig_P9) * p * p / 2147483648.0
             var2 = p * float(self.dig_P8) / 32768.0
             p = p + ((var1 + var2 + float(self.dig_P7)) / 16.0)
-            self.pressure = p
+            self.pressure = round(p, 2)
 
     def CalculateHumidity(self):
         # These equations are from the BME280 datasheet Appendeix 8.1
@@ -143,7 +143,7 @@ class EnvironmentSensor:
         elif var_h < 0.0:
             var_h = 0.0
 
-        self.humidity = var_h
+        self.humidity = round(var_h, 2)
 
     # Register level data
     calibration_data = [ 0x00 ] * 42
