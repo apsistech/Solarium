@@ -43,4 +43,8 @@ print analog_to_digital_converter.GetVoltages()'''
 
 # Telemetry manager
 telemetry_manager = telemetry.TelemetryManager()
-telemetry_manager.Update()
+telemetry_manager.real_time_clock.SetTimeFromSystemClock()
+while 1:
+    telemetry_manager.Update()
+    #print telemetry_manager.environment_sensor.GetTemperature()
+    time.sleep(59)

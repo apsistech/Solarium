@@ -21,18 +21,23 @@ class AnalogToDigitalConverter:
     # Low level functions
     def UpdateMeasurementData(self):
         bus = smbus.SMBus(1)
-        self.adc_output_raw[0] = bus.read_word_data(0x08, 0b10001000)
-        self.adc_output_raw[1] = bus.read_word_data(0x08, 0b11001000)
-        self.adc_output_raw[2] = bus.read_word_data(0x08, 0b10011000)
-        self.adc_output_raw[3] = bus.read_word_data(0x08, 0b11011000)
-        self.adc_output_raw[4] = bus.read_word_data(0x08, 0b10101000)
-        self.adc_output_raw[5] = bus.read_word_data(0x08, 0b11101000)
-        self.adc_output_raw[6] = bus.read_word_data(0x08, 0b10111000)
-        self.adc_output_raw[7] = bus.read_word_data(0x08, 0b11111000)
+        self.adc_output_raw[0] = bus.read_word_data(0x08, 0b11001000)
+        self.adc_output_raw[0] = bus.read_word_data(0x08, 0b11001000)
+        self.adc_output_raw[1] = bus.read_word_data(0x08, 0b10011000)
+        self.adc_output_raw[2] = bus.read_word_data(0x08, 0b11011000)
+        self.adc_output_raw[3] = bus.read_word_data(0x08, 0b10101000)
+        self.adc_output_raw[4] = bus.read_word_data(0x08, 0b11101000)
+        self.adc_output_raw[5] = bus.read_word_data(0x08, 0b10111000)
+        self.adc_output_raw[6] = bus.read_word_data(0x08, 0b11111000)
+        self.adc_output_raw[7] = bus.read_word_data(0x08, 0b10001000)
         bus.close()
 
         for n in range(0, len(self.adc_output)):
-            self.adc_output[n] = round(self.adc_output_raw[n] * 2.5 / (2**16), 2)
+            self.adc_output[n] = round(float(self.flip_endian(self.adc_output_raw[n]) >> 4) * 4.096 / (2**12), 2)
+
+    def flip_endian(self, value):
+        return (value >>  8) + ((value & 0xFF) << 8)
+    
 
     # Register data
     adc_output_raw = [ 0x00 ] * 8

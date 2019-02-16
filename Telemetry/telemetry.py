@@ -11,6 +11,7 @@ class TelemetryManager:
     # High level functions
     def Update(self):
         self.UpdateSubModules()
+        #print self.analog_to_digital_converter.GetVoltages()
         self.WriteDataPacketToFile('/home/pi/Desktop/telemetry_data.csv')
 
     # Low level functions
